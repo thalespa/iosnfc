@@ -9,7 +9,9 @@ import UIKit
 import CoreNFC
 
 class ViewController: UIViewController {
-   
+    
+    private var session: NFCNDEFReaderSession?
+    
     private lazy var buttonItem: UIButton = {
         let button = UIButton();
         button.setTitle("Tests", for: .normal)
@@ -44,7 +46,23 @@ class ViewController: UIViewController {
     
     @objc private func buttonTapped() {
            // Handle the button tap event here
-           print("Button tapped!")
+        print("Button tapped!")
+        guard NFCNDEFReaderSession.readingAvailable else {
+            
+            let alertController = UIAlertController(
+                  title: "Scanning Not Supported",
+                  message: "This device doesn't support tag scanning.",
+                  preferredStyle: .alert
+            )
+        
+            alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+            self.present(alertController, animated: true, completion: nil)
+            return
+            
+        }
+        session = NFCNDEFReaderSession(delegate: self, queue: nil, invalidateAfterFirstRead: false)
+        session?.alertMessage = "Hold your iPhone near the item to learn more about it."
+        session?.begin()
     }
 
 }
@@ -52,11 +70,28 @@ class ViewController: UIViewController {
 extension ViewController: NFCNDEFReaderSessionDelegate {
     
     func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: Error) {
-        
+        if let readerError = error as? NFCReaderError {
+            if (readerError.code != .readerSessionInvalidationErrorFirstNDEFTagRead)
+                && (readerError.code != .readerSessionInvalidationErrorUserCanceled) {
+                let alertController = UIAlertController(
+                       title: "Session Invalidated",
+                       message: error.localizedDescription,
+                       preferredStyle: .alert
+                )
+                alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+                DispatchQueue.main.async {
+                    self.present(alertController, animated: true, completion: nil)
+                    
+                }
+            }
+        }
+        // To read new tags, a new session instance is required.
     }
     
     func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
-        
+        DispatchQueue.main.async {
+            print(messages)
+        }
     }
 }
 
